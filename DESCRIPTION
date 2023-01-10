@@ -1,14 +1,30 @@
 Package: shinymetrics
-Version: 0.0.0.9000
 Title: A Package That Produces Metrics For FIND Shiny Applications
+Version: 0.0.0.9000
+Authors@R: c(
+    person("Anna", "Mantsoki", , "anna.mantsoki@finddx.org", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-1565-9313")),
+    person("Anna Mantsoki", role = "cph")
+  )
 Description: A package that produces metrics for FIND Shiny applications.
-Authors@R: c(person(given = "Anna",
-         family = "Mantsoki",
-         role = c("aut", "cre"),
-         email = "anna",
-         comment = c(ORCID = "0000-0002-1565-9313")),
-  person(given = "FIND"))
 License: MIT + file LICENSE
+Depends: 
+    R (>= 2.10)
+Imports: 
+    dplyr,
+    ggplot2,
+    lubridate,
+    magrittr,
+    rsconnect,
+    shinyfind,
+    tidyr
+Suggests: 
+    knitr,
+    rmarkdown,
+    testthat
+VignetteBuilder: 
+    knitr
 Encoding: UTF-8
+LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.1

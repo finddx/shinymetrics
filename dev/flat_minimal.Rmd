@@ -7,6 +7,23 @@ editor_options:
 
 ```{r development, include=FALSE}
 library(testthat)
+library(tidyverse)
+library(lubridate)
+library(shinyfind)
+library(purrr)
+library(magrittr)
+library(dplyr)
+
+
+apps <- rsconnect::applications("finddx") 
+
+apps <- c("FINDCov19Tracker", "FINDCov19Policy", "testdir_tabs","ntds", 
+              "ebola", "monkeypox", "covid_eqa")
+
+
+app_names <- c("FIND Sars-CoV-2 Test tracker", "FIND Sars-CoV-2 Policy dashboard", "FIND Test directory (COVID-19)",
+          "FIND Test directory (NTDs)", "FIND Test directory (Ebola)","FIND Test directory (Monkeypox)", 
+          "FIND EQA directory (COVID-19)")
 ```
 
 <!--
@@ -18,29 +35,158 @@ library(testthat)
 pkgload::load_all(export_all = FALSE)
 ```
 
-# my_fun
+# Metrics
 
-```{r function-my_fun}
-#' my_fun Title
+```{r function-metrics}
+#' metrics Produce metrics for shiny app
 #'
-#' @return 1
-#' @export
+#' @return A data frame with number of connections per day for the given shiny application
+#' @param app The name of the app on the shinyapps.io server
+#' @param app_name The name of the the application, to be used for plots and titles
+#' @param server The server where the shiny app is hosted
+#' @param from The date and time from when the metrics should be measured from
+#' @param until The date and time until when the metrics should be measured from
+#' @importfrom magrittr set_colnames
+#' @importfrom rsconnect showMetrics
+#' @importfrom dplyr mutate select arrange group_by summarise case_when
+#' @importfrom tidyr gather
+#' @importfrom lubridate date as_datetime
+#' @export 
 #'
 #' @examples
-my_fun <- function() {
-  1
+metrics <- function(app = "FINDCov19Policy", app_name = "FIND Sars-CoV-2 Policy dashboard", 
+                    server="shinyapps.io", from = "2022-09-01 0:00:00", until = "2022-12-12 0:00:00"){
+  df <- rsconnect::showMetrics("container_status",
+                               c("connect_count", 
+                                 "connect_procs"),
+                               appName = app,
+                               server = server,
+                               from = as.numeric(as.POSIXct(from)),
+                               until = as.numeric(as.POSIXct(until)),
+                               interval="1m"
+  ) %>%
+    magrittr::set_colnames(c("dummy", "timestamp", "connect_count", "connect_procs")) %>%
+    dplyr::mutate(across(c("timestamp", "connect_count", "connect_procs"), as.numeric)) %>%
+    dplyr::mutate(date=lubridate::as_datetime(timestamp)) %>% 
+    dplyr::select(-timestamp) %>% 
+    dplyr::arrange(date) %>% 
+    dplyr::mutate(date = lubridate::date(date),
+           new_connect=dplyr::case_when(
+             connect_count>lag(connect_count,1) ~ connect_count-lag(connect_count,1),
+             TRUE ~ 0)) %>%
+    dplyr::group_by(date) %>%
+    dplyr::summarise(
+      n_count=sum(connect_count),
+      n_procs=sum(connect_procs),
+      n_connect=sum(new_connect) # approximate) %>%
+    ) %>%  
+    dplyr::select(n_connect, date) %>% 
+    tidyr::gather(key="key", value="value", -date) %>%
+    dplyr::mutate(key = app_name)
+  
+  return(df)
 }
+
+
 ```
 
-```{r examples-my_fun}
-my_fun()
+```{r examples-metrics}
+app <- c("FINDCov19Tracker")
+app_name <- c("FIND Sars-CoV-2 Test tracker")
+server <- rep("shinyapps.io", length(app))
+from <- rep("2022-09-01 0:00:00", length(app))
+until <- rep("2022-12-12 0:00:00", length(app))
+
+metrics_df <- metrics(app = app, app_name = app_name, 
+                                    server = server, from = from, until = until)
+
 ```
 
-```{r tests-my_fun}
-test_that("my_fun works", {
+```{r tests-metrics}
+app <- c("FINDCov19Tracker")
+app_name <- c("FIND Sars-CoV-2 Test tracker")
+server <- rep("shinyapps.io", length(app))
+from <- rep("2022-09-01 0:00:00", length(app))
+until <- rep("2022-12-12 0:00:00", length(app))
 
+metrics_df <- metrics(app = app, app_name = app_name, 
+                                    server = server, from = from, until = until)
+
+test_that("metrics works", {
+  expect_s3_class(object = metrics_df, class = "data.frame")
+  expect_length(object = metrics_df, n = 3)
+  expect_that(nrow(metrics_df), equals(103))
 })
 ```
+
+
+
+
+# Plot metrics
+
+```{r function-plot_metrics}
+#' plot_metrics Produce metrics for shiny app
+#'
+#' @return A plot with number of connections per day for the given shiny application
+#' @param df A data frame with number of connections per day for the given shiny application, produced by metrics function
+#' @param weekly Logical variable, TRUE if plot should be showcasing number of connections by week, FALSE for number of connections per day
+#' @param app_name The name of the the application, to be used for plots and titles
+#' @import ggplot2
+#' @importfrom shinyfind pal_find
+#' @importfrom dplyr  group_by summarise 
+#' @importfrom tidyr gather
+#' @importfrom lubridate as_date
+#' @export 
+#'
+#' @examples
+plot_metrics <- function(df = metrics_df, weekly = TRUE, app_name = "FIND Sars-CoV-2 Test tracker"){
+  df <- subset(df, key == app_name)
+  
+  if(isTRUE(weekly)){
+    df <- df %>%
+      dplyr::group_by(date = cut(date, "week"), key) %>% 
+      dplyr::summarise(value = sum(value))
+    df$date <- lubridate::as_date(df$date)
+    
+    p <- ggplot(df) +
+      labs(title="Number of connections for FIND shiny applications (weekly)", x="", y="") +
+      geom_line(aes(x=date, y=value, colour=key)) +
+      facet_wrap(~key) + 
+      scale_color_manual(values = shinyfind::pal_find()) +
+      theme_light()
+    
+  } else {
+    df <- df
+    p <- ggplot(df) +
+      labs(title="Number of connections for FIND shiny applications (daily)", x="", y="") +
+      geom_line(aes(x=date, y=value, colour=key)) +
+      facet_wrap(~key) + 
+      scale_color_manual(values = shinyfind::pal_find()) +
+      theme_light()
+  }
+  
+ return(p)
+}
+
+```
+
+```{r examples-plot_metrics}
+p <- plot_metrics(df = metrics_df, weekly = TRUE, app_name = "FIND Sars-CoV-2 Test tracker")
+print(p)
+
+```
+
+```{r tests-plot_metrics}
+
+p <- plot_metrics(df = metrics_df, weekly = TRUE, app_name = "FIND Sars-CoV-2 Test tracker")
+
+test_that("plot_metrics works", {
+  expect_s3_class(object = p, class = "ggplot")
+  
+})
+
+```
+
 
 
 ```{r development-inflate, eval=FALSE}
