@@ -14,12 +14,9 @@ for the shiny application on the FIND shinyapps.io server
 You can install the development version of shinymetrics like so:
 
 ``` r
-install.packages("remotes")
-#> 
-#> The downloaded binary packages are in
-#>  /var/folders/ts/9pym4mjn6vxd_wg4k5v5j75c0000gp/T//RtmpZAMytz/downloaded_packages
-remotes::install_github("finddx/shinymetrics")
-#> Skipping install of 'shinymetrics' from a github remote, the SHA1 (8613c1d2) has not changed since last install.
+# install.packages("devtools")
+devtools::install_github("finddx/shinymetrics")
+#> Skipping install of 'shinymetrics' from a github remote, the SHA1 (d124c648) has not changed since last install.
 #>   Use `force = TRUE` to force installation
 ```
 
@@ -60,10 +57,3 @@ up-to-date. `devtools::build_readme()` is handy for this. You could also
 use GitHub Actions to re-render `README.Rmd` every time you push. An
 example workflow can be found here:
 <https://github.com/r-lib/actions/tree/v1/examples>.
-
-You can also embed plots, for example:
-
-<img src="man/figures/README-pressure-1.png" width="100%" />
-
-In that case, don’t forget to commit and push the resulting figure
-files, so they display on GitHub and CRAN.

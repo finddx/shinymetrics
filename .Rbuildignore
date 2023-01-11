@@ -6,3 +6,6 @@
 ^README\.Rmd$
 ^CODE_OF_CONDUCT\.md$
 ^shinymetrics\.Rproj$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$
