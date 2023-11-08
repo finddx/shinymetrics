@@ -3,8 +3,8 @@
 app <- c("FINDCov19Tracker")
 app_name <- c("FIND Sars-CoV-2 Test tracker")
 server <- rep("shinyapps.io", length(app))
-from <- rep("2022-09-01 0:00:00", length(app))
-until <- rep("2022-12-12 0:00:00", length(app))
+from <- rep("2023-09-01 0:00:00", length(app))
+until <- rep("2023-12-12 0:00:00", length(app))
 
 metrics_df <- metrics(app = app, app_name = app_name, 
                                     server = server, from = from, until = until)
